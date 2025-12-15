@@ -1,46 +1,46 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 
-let db;
+let pool;
 
-// Initialize database connection
-function initDb() {
-  return new Promise((resolve, reject) => {
-    db = new sqlite3.Database(path.join(__dirname, '../../clinique.db'), (err) => {
-      if (err) reject(err);
-      else resolve(db);
-    });
-  });
+function ensurePool() {
+  if (!pool) {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  }
+  return pool;
 }
 
-// Generic run query
-function run(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
+// Convert sqlite-style ? placeholders to $1, $2 for pg
+function convertPlaceholders(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => '$' + (++i));
 }
 
-// Generic get query
-function get(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+async function initDb() {
+  const p = ensurePool();
+  // simple test
+  await p.query('SELECT 1');
+  return p;
 }
 
-// Generic all query
-function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+async function run(sql, params = []) {
+  const p = ensurePool();
+  const q = convertPlaceholders(sql);
+  const res = await p.query(q, params);
+  return res; // caller can inspect rows if needed
+}
+
+async function get(sql, params = []) {
+  const p = ensurePool();
+  const q = convertPlaceholders(sql);
+  const res = await p.query(q, params);
+  return res.rows[0] || null;
+}
+
+async function all(sql, params = []) {
+  const p = ensurePool();
+  const q = convertPlaceholders(sql);
+  const res = await p.query(q, params);
+  return res.rows || [];
 }
 
 module.exports = {

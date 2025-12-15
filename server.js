@@ -547,30 +547,21 @@ app.put('/hospitalisation/:id', async (req, res) => {
   }
 });
 
-// Initialize database and start server
-db.initDb().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Clinique API server running on port ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/health`);
-  });
-}).catch(err => {
-  console.error('Failed to initialize database:', err);
-  process.exit(1);
-});
+// Initialize database, create schema, seed data and start server
+const dbInit = require('./db/init');
 
-// Ensure lab_tests table has some default entries when server starts
-db.initDb().then(async () => {
+(async () => {
   try {
-    const tests = await models.getLabTests();
-    if (!tests || tests.length === 0) {
-      console.log('Seeding default lab tests into database (server bootstrap)');
-      await models.createLabTest({ name: 'Hémogramme', description: 'Hémogramme complet', price: 263, category: 'Hématologie' });
-      await models.createLabTest({ name: 'Glycémie', description: 'Glycémie à jeun', price: 150, category: 'Biochimie' });
-      await models.createLabTest({ name: 'Bilan rénal', description: 'Créatinine, urée', price: 800, category: 'Biochimie' });
-    }
-  } catch (e) {
-    console.error('Error seeding lab tests on bootstrap:', e);
+    await db.initDb();
+    await dbInit.initializeSchema();
+    await dbInit.seedTestData();
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Clinique API server running on port ${PORT}`);
+      console.log(`Health check: http://localhost:${PORT}/health`);
+    });
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
   }
-}).catch(e => {
-  console.error('DB init failed during bootstrap seed check:', e);
-});
+})();
