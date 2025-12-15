@@ -43,6 +43,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Clinique API is running' });
 });
 
+// Root route: return same payload as /health to avoid "Cannot GET /"
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'Clinique API is running' });
+});
+
 // ==================== AUTH ====================
 app.post('/auth/signup', async (req, res) => {
   try {
