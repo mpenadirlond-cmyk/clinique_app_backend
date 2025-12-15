@@ -216,6 +216,50 @@ function seedTestData() {
     { id: uuidv4(), nom: 'Bernard', prenom: 'Pierre', age: 58, telephone: '+242 06 345 6789' }
   ];
 
+  // If DATABASE_URL is set, use the shared db connection (Postgres); otherwise use sqlite3 commands above
+  if (process.env.DATABASE_URL) {
+    const dbShared = require('./connection');
+    (async () => {
+      try {
+        // Insert user using ON CONFLICT on email
+        await dbShared.run(`INSERT INTO users (id, fullName, email, password, role) VALUES (?, ?, ?, ?, ?) ON CONFLICT (email) DO NOTHING`, [testUser.id, testUser.fullName, testUser.email, testUser.password, testUser.role]);
+
+        // Insert patients
+        for (const patient of testPatients) {
+          await dbShared.run(`INSERT INTO patients (id, nom, prenom, age, telephone) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`, [patient.id, patient.nom, patient.prenom, patient.age, patient.telephone]);
+        }
+
+        const testMedicines = [
+          { id: uuidv4(), name: 'Paracétamol', category: 'Analgésique', quantity: 100, price: 500 },
+          { id: uuidv4(), name: 'Amoxicilline', category: 'Antibiotique', quantity: 50, price: 1500 },
+          { id: uuidv4(), name: 'Ibuprofène', category: 'Anti-inflammatoire', quantity: 75, price: 800 }
+        ];
+
+        for (const med of testMedicines) {
+          await dbShared.run(`INSERT INTO medicines (id, name, category, quantity, price) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`, [med.id, med.name, med.category, med.quantity, med.price]);
+        }
+
+        const testLabTests = [
+          { id: uuidv4(), name: 'Hémogramme', description: 'Hémogramme complet', price: 263, category: 'Hématologie' },
+          { id: uuidv4(), name: 'Glycémie', description: 'Glycémie à jeun', price: 150, category: 'Biochimie' },
+          { id: uuidv4(), name: 'Bilan rénal', description: 'Créatinine, urée', price: 800, category: 'Biochimie' }
+        ];
+
+        for (const t of testLabTests) {
+          await dbShared.run(`INSERT INTO lab_tests (id, name, description, price, category) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`, [t.id, t.name, t.description, t.price, t.category]);
+        }
+
+        console.log('Test data seeded successfully.');
+      } catch (e) {
+        console.error('Seeding failed:', e);
+      } finally {
+        process.exit(0);
+      }
+    })();
+    return;
+  }
+
+  // sqlite path (no DATABASE_URL)
   db.serialize(() => {
     // Insert test user
     db.run(`
