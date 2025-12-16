@@ -189,7 +189,7 @@ async function seedTestData() {
   await db.run(`
     INSERT INTO users (id, fullName, email, password, role)
     VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT (id) DO NOTHING
+    ON CONFLICT (email) DO NOTHING
   `, [testUser.id, testUser.fullName, testUser.email, testUser.password, testUser.role]);
 
   for (const patient of testPatients) {
@@ -215,9 +215,9 @@ async function seedTestData() {
   }
 
   const testLabTests = [
-    { id: uuidv4(), name: 'Hémogramme', description: 'Hémogramme complet', price: 263, category: 'Hématologie' },
-    { id: uuidv4(), name: 'Glycémie', description: 'Glycémie à jeun', price: 150, category: 'Biochimie' },
-    { id: uuidv4(), name: 'Bilan rénal', description: 'Créatinine, urée', price: 800, category: 'Biochimie' }
+    { id: uuidv4(), name: 'Hémogramme', description: 'Hémogramme complet', price: 2630, category: 'Hématologie' },
+    { id: uuidv4(), name: 'Glycémie', description: 'Glycémie à jeun', price: 15000, category: 'Biochimie' },
+    { id: uuidv4(), name: 'Bilan rénal', description: 'Créatinine, urée', price: 8000, category: 'Biochimie' }
   ];
 
   for (const t of testLabTests) {
