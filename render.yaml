@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: clinique-backend
+    env: node
+    plan: free
+    path: backend
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
