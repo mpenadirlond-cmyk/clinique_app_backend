@@ -1,69 +1,75 @@
-const { Pool } = require("pg");
+const path = require('path');
 
-let pool;
+// If DATABASE_URL is provided, use pg Pool (Postgres). Otherwise fall back to sqlite3.
+if (process.env.DATABASE_URL) {
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
-/**
- * Initialise la connexion PostgreSQL (Neon)
- */
-async function initDb() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is not defined in environment variables");
+  async function initDb() {
+    // For Postgres we just ensure the pool is ready. Schema creation/migration should be handled separately.
+    return pool;
   }
 
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
+  async function run(sql, params = []) {
+    const r = await pool.query(sql, params);
+    return r;
+  }
+
+  async function get(sql, params = []) {
+    const r = await pool.query(sql, params);
+    return r.rows && r.rows[0] ? r.rows[0] : null;
+  }
+
+  async function all(sql, params = []) {
+    const r = await pool.query(sql, params);
+    return r.rows || [];
+  }
+
+  module.exports = { initDb, run, get, all };
+
+} else {
+  const sqlite3 = require('sqlite3').verbose();
+  let db;
+
+  // Initialize database connection (SQLite)
+  function initDb() {
+    return new Promise((resolve, reject) => {
+      db = new sqlite3.Database(path.join(__dirname, '../../clinique.db'), (err) => {
+        if (err) reject(err);
+        else resolve(db);
+      });
     });
-
-    // Test de connexion
-    await pool.query("SELECT 1");
-    console.log("✅ PostgreSQL connected (Neon)");
   }
 
-  return pool;
-}
-
-/**
- * S'assure que le pool est initialisé avant toute requête
- */
-async function ensurePool() {
-  if (!pool) {
-    await initDb();
+  // Generic run query
+  function run(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      db.run(sql, params, function(err) {
+        if (err) reject(err);
+        else resolve(this);
+      });
+    });
   }
-}
 
-/**
- * Exécute une requête SQL (INSERT, UPDATE, DELETE)
- */
-async function run(sql, params = []) {
-  await ensurePool();
-  return pool.query(sql, params);
-}
+  // Generic get query
+  function get(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      db.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+  }
 
-/**
- * Retourne une seule ligne
- */
-async function get(sql, params = []) {
-  await ensurePool();
-  const result = await pool.query(sql, params);
-  return result.rows[0] || null;
-}
+  // Generic all query
+  function all(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+  }
 
-/**
- * Retourne plusieurs lignes
- */
-async function all(sql, params = []) {
-  await ensurePool();
-  const result = await pool.query(sql, params);
-  return result.rows;
+  module.exports = { initDb, run, get, all };
 }
-
-module.exports = {
-  initDb,
-  run,
-  get,
-  all
-};

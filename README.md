@@ -123,3 +123,48 @@ NODE_ENV=development
 ## Database
 
 SQLite database is stored at the project root as `clinique.db`. All tables are automatically created on first run.
+
+## Déploiement sur Render — Problèmes courants
+
+Si votre déploiement Render échoue avec une erreur liée à `sqlite3` (ex: "invalid ELF header" ou `ERR_DLOPEN_FAILED`), c'est généralement dû à un binaire précompilé incompatible avec l'image Linux utilisée par Render. Solutions recommandées :
+
+- Option 1 — Rebuild `sqlite3` sur l'instance (appliqué automatiquement) :
+
+  - Le fichier `package.json` inclut désormais un script `postinstall` qui tente de reconstruire `sqlite3` depuis les sources pendant l'installation (`npm rebuild sqlite3 --build-from-source`).
+  - Assurez-vous dans le tableau de bord Render que la version Node est compatible (recommandé `18.x` — voir `engines` dans `package.json`).
+
+- Option 2 — Utiliser une base distante (recommandé pour production) :
+
+  - Préférez PostgreSQL (Neon, Render Postgres, Railway, etc.) pour les services déployés sur Render plutôt que SQLite, car SQLite dépend d'un fichier local et de binaires natifs.
+  - Pour cela : migrez la logique DB vers Postgres (ou utilisez `backend_api` qui attend `DATABASE_URL`) et définissez la variable d'environnement `DATABASE_URL` dans les settings du service Render.
+
+- Option 3 — Forcer une image d'exécution différente / builder personnalisé :
+  - Si vous avez des besoins spécifiques, créez un `Dockerfile` pour construire l'image et compiler les modules natifs, puis déployez via Render en utilisant votre Dockerfile.
+
+Conseils pratiques :
+
+- Dans Render Service → Settings, définissez la version Node à `18.x` (ou celle indiquée dans `package.json`).
+- Vérifiez les logs de déploiement pour la sortie de `npm rebuild sqlite3` si le `postinstall` s'exécute.
+- Si le rebuild échoue et que vous n'avez pas besoin de SQLite en production, migrez vers Postgres et mettez à jour votre code pour utiliser `DATABASE_URL`.
+
+### Migration vers Postgres (recommandé)
+
+1. Créez une base Postgres via Render (Add -> Database) ou utilisez Neon / Railway.
+2. Dans votre Service Render -> Environment, ajoutez `DATABASE_URL` avec la chaîne de connexion fournie.
+3. Déployez ou redéployez le service. Le backend détecte automatiquement `DATABASE_URL` et utilisera Postgres.
+4. Pour initialiser les tables et seeder des données de test, exécutez localement ou sur l'instance :
+
+```bash
+# local (après avoir exporté DATABASE_URL)
+cd backend
+npm run db:init:pg
+```
+
+Sur Render, vous pouvez exécuter un job ou temporairement lancer la commande via un shell pour appeler `npm run db:init:pg` si Render le permet pour votre plan.
+
+Si vous préférez garder SQLite en local mais Postgres en production, ne changez rien en local et ajoutez seulement `DATABASE_URL` sur Render.
+
+### Notes
+
+- Le projet contient maintenant `backend/db/init_postgres.js` pour créer les tables Postgres automatiquement.
+- `backend/db/connection.js` bascule automatiquement vers Postgres quand `DATABASE_URL` est défini.

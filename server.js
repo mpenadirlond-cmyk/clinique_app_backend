@@ -43,11 +43,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Clinique API is running' });
 });
 
-// Root route: return same payload as /health to avoid 404 on the service root
-app.get('/', (req, res) => {
-  res.json({ status: 'OK', message: 'Clinique API is running' });
-});
-
 // ==================== AUTH ====================
 app.post('/auth/signup', async (req, res) => {
   try {
@@ -62,21 +57,9 @@ app.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await models.getUserByEmail(email);
-    // Verbose auth logging for local debugging (do not enable in production)
-    try {
-      const authFound = !!user;
-      const authMatch = authFound && user.password === password;
-      const entry = `${new Date().toISOString()} AUTH_ATTEMPT email=${email} found=${authFound} match=${authMatch}\n`;
-      fs.appendFileSync(path.join(__dirname, '..', 'server_requests.log'), entry);
-      console.log(entry.trim());
-    } catch (e) {
-      // ignore logging errors
-    }
-
     if (!user || user.password !== password) {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
-
     // For now return user object (no JWT). In future, issue a token here.
     res.json({ success: true, data: user });
   } catch (error) {
